@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Калькулятор прибутку СЕС</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    input, button { width: 100%; padding: 10px; margin-top: 10px; font-size: 1em; }
+    h2 { color: #333; }
+    .result { background: #eef; padding: 15px; margin-top: 20px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Калькулятор прибутку сонячної електростанції</h2>
+
+    <label>Середня потужність Pc (МВт)</label>
+    <input type="number" id="pc" value="5" step="0.1" />
+
+    <label>Початкова похибка прогнозу σ1 (МВт)</label>
+    <input type="number" id="sigma1" value="1" step="0.01" />
+
+    <label>Покращена похибка прогнозу σ2 (МВт)</label>
+    <input type="number" id="sigma2" value="0.25" step="0.01" />
+
+    <label>Ціна електроенергії B (грн/кВт⋅год)</label>
+    <input type="number" id="b" value="7" step="0.1" />
+
+    <button onclick="calculate()">Розрахувати прибуток</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    function normalCDF(x, mean, std) {
+      return 0.5 * (1 + erf((x - mean) / (std * Math.sqrt(2))));
+    }
+
+    function erf(x) {
+      // Numerical approximation of error function
+      const sign = (x >= 0) ? 1 : -1;
+      x = Math.abs(x);
+      const a1 =  0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+      const a4 = -1.453152027, a5 = 1.061405429;
+      const p  = 0.3275911;
+      const t = 1.0 / (1.0 + p * x);
+      const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      return sign * y;
+    }
+
+    function calculate() {
+      const Pc = parseFloat(document.getElementById("pc").value);
+      const σ1 = parseFloat(document.getElementById("sigma1").value);
+      const σ2 = parseFloat(document.getElementById("sigma2").value);
+      const B = parseFloat(document.getElementById("b").value);
+
+      const lower = Pc - 0.25;
+      const upper = Pc + 0.25;
+
+      const δп1 = normalCDF(upper, Pc, σ1) - normalCDF(lower, Pc, σ1);
+      const δп2 = normalCDF(upper, Pc, σ2) - normalCDF(lower, Pc, σ2);
+
+      const W1 = Pc * 24 * δп1;
+      const W2 = Pc * 24 * (1 - δп1);
+      const П1 = W1 * B * 1000;
+      const Ш1 = W2 * B * 1000;
+      const чистий1 = П1 - Ш1;
+
+      const W3 = Pc * 24 * δп2;
+      const W4 = Pc * 24 * (1 - δп2);
+      const П2 = W3 * B * 1000;
+      const Ш2 = W4 * B * 1000;
+      const чистий2 = П2 - Ш2;
+
+      const приріст = чистий2 - чистий1;
+
+      document.getElementById("result").innerHTML = `
+        <strong>До покращення:</strong><br/>
+        Частка без штрафів: ${(δп1 * 100).toFixed(1)}%<br/>
+        Прибуток: ${П1.toFixed(1)} грн<br/>
+        Штраф: ${Ш1.toFixed(1)} грн<br/>
+        <strong>Чистий результат: ${чистий1.toFixed(1)} грн</strong><br/><br/>
+
+        <strong>Після покращення:</strong><br/>
+        Частка без штрафів: ${(δп2 * 100).toFixed(1)}%<br/>
+        Прибуток: ${П2.toFixed(1)} грн<br/>
+        Штраф: ${Ш2.toFixed(1)} грн<br/>
+        <strong>Чистий результат: ${чистий2.toFixed(1)} грн</strong><br/><br/>
+
+        <strong>Покращення прибутку: ${приріст.toFixed(1)} грн</strong>
+      `;
+    }
+  </script>
+</body>
+</html>
